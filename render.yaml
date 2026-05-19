@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: alkafolio-api
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build
+    startCommand: pnpm --filter @workspace/api-server run start
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+
+      # --- Required secrets (set manually in Render dashboard) ---
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # --- Email OTP (optional — OTP is returned in response if unset) ---
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+
+      # --- CoinGecko (optional — free tier works without a key) ---
+      - key: COINGECKO_API_KEY
+        sync: false
