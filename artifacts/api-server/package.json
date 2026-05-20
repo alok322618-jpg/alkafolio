@@ -1,9 +1,10 @@
 {
-  "name": "alkafolio-api",
-  "version": "1.0.0",
+  "name": "@workspace/api-server",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "export NODE_ENV=development && node build.mjs && node --enable-source-maps ./dist/index.mjs",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs"
   },
