@@ -4,16 +4,13 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: cd artifacts/api-server && npm install --legacy-peer-deps && node build.mjs
-    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    buildCommand: npm install
+    startCommand: node server.js
     healthCheckPath: /api/healthz
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
 
-      # --- Required secrets (set manually in Render dashboard) ---
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
@@ -21,12 +18,10 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
 
-      # --- Email OTP (optional — OTP is returned in response if unset) ---
       - key: EMAIL_USER
         sync: false
       - key: EMAIL_PASS
         sync: false
 
-      # --- CoinGecko (optional — free tier works without a key) ---
       - key: COINGECKO_API_KEY
         sync: false
