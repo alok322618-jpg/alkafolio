@@ -4,7 +4,7 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: cd artifacts/api-server && npm install && node build.mjs
+    buildCommand: cd artifacts/api-server && npm install --legacy-peer-deps && node build.mjs
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz
     envVars:
