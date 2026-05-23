@@ -1,10 +1,15 @@
 import express from 'express';
 import cors from 'cors';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import mongoose from 'mongoose';
 import authRoutes from './routes/auth.js';
 import walletRoutes from './routes/wallet.js';
 import chatRoutes from './routes/chat.js';
 import pricesRoutes from './routes/prices.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 
@@ -15,14 +20,24 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Serve static frontend files
+app.use(express.static(join(__dirname, 'public')));
+
 // Health check
 app.get('/api/healthz', (_req, res) => res.json({ status: 'ok' }));
 
-// Routes
+// API Routes
 app.use('/api', authRoutes);
 app.use('/api', walletRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', pricesRoutes);
+
+// Fallback: serve index.html for any non-API route
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(join(__dirname, 'public', 'index.html'));
+  }
+});
 
 // Connect to MongoDB then start server
 const MONGODB_URI = process.env.MONGODB_URI;
