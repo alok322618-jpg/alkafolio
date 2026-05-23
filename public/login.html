@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AlkaFolio — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#050d1a;--card:#0a1c30;--card2:#0d2240;--border:rgba(0,212,255,0.1);--border2:rgba(0,212,255,0.06);--cyan:#00d4ff;--gold:#f5a623;--green:#00e676;--red:#ff1744;--text:#e8f4f0;--muted:#3a6a8a;--muted2:#6a9ab0;--font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column;}
+.bg-layer{position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 700px 500px at 10% 20%,rgba(0,212,255,0.07) 0%,transparent 60%),radial-gradient(ellipse 500px 400px at 90% 80%,rgba(245,166,35,0.05) 0%,transparent 60%);}
+.bg-grid{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);background-size:60px 60px;}
+nav{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:18px 40px;border-bottom:1px solid var(--border2);background:rgba(5,13,26,0.9);backdrop-filter:blur(20px);}
+.nav-logo{display:flex;align-items:center;gap:12px;text-decoration:none;}
+.nav-logo-text{font-size:22px;font-weight:900;letter-spacing:-0.5px;background:linear-gradient(135deg,var(--cyan) 0%,#fff 50%,var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.nav-back{color:var(--muted2);text-decoration:none;font-size:13px;font-weight:600;}
+.main{flex:1;position:relative;z-index:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+.auth-wrap{width:100%;max-width:440px;animation:fadeUp 0.5s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.auth-logo{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:28px;}
+.auth-logo-name{font-size:28px;font-weight:900;letter-spacing:-0.8px;background:linear-gradient(135deg,var(--cyan) 0%,#fff 50%,var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.auth-logo-tag{font-size:11px;font-family:var(--mono);font-weight:600;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+.auth-card{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:32px;position:relative;overflow:hidden;}
+.auth-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--cyan),var(--gold));}
+.auth-tabs{display:flex;background:var(--card2);border-radius:12px;padding:4px;margin-bottom:24px;}
+.auth-tab{flex:1;padding:9px;border-radius:9px;text-align:center;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s;color:var(--muted2);border:none;background:transparent;font-family:var(--font);}
+.auth-tab.active{background:var(--card);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+.screen{display:none;}.screen.active{display:block;animation:fadeUp 0.3s ease;}
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.form-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted2);font-family:var(--mono);}
+.form-input{background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:13px 16px;color:var(--text);font-family:var(--font);font-size:15px;outline:none;transition:all 0.2s;width:100%;}
+.form-input:focus{border-color:rgba(0,212,255,0.4);box-shadow:0 0 0 3px rgba(0,212,255,0.06);}
+.form-input::placeholder{color:var(--muted);}
+.input-wrap{position:relative;}.input-wrap .form-input{padding-right:44px;}
+.toggle-pw{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted2);font-size:16px;}
+.form-error{font-size:11px;color:var(--red);font-family:var(--mono);display:none;margin-top:2px;}.form-error.show{display:block;}
+.form-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.remember{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted2);cursor:pointer;}
+.remember input{width:16px;height:16px;accent-color:var(--cyan);}
+.forgot{font-size:13px;color:var(--cyan);text-decoration:none;font-weight:600;}
+.btn-submit{width:100%;padding:14px;border-radius:12px;border:none;font-family:var(--font);font-size:16px;font-weight:800;cursor:pointer;transition:all 0.2s;margin-top:4px;background:linear-gradient(135deg,var(--cyan),#0099cc);color:#050d1a;box-shadow:0 4px 20px rgba(0,212,255,0.25);}
+.btn-submit:hover{transform:translateY(-2px);}
+.btn-submit:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+.btn-submit.gold{background:linear-gradient(135deg,var(--gold),#e8530a);}
+.pw-strength{display:flex;gap:4px;margin-top:6px;}
+.pw-bar{flex:1;height:3px;border-radius:2px;background:var(--card2);transition:background 0.3s;}
+.pw-label{font-size:11px;font-family:var(--mono);color:var(--muted);margin-top:4px;}
+.otp-header{text-align:center;margin-bottom:20px;}
+.otp-icon{font-size:52px;margin-bottom:12px;}
+.otp-title{font-size:22px;font-weight:800;margin-bottom:8px;}
+.otp-sub{font-size:14px;color:var(--muted2);line-height:1.6;}
+.otp-email{color:var(--cyan);font-weight:700;}
+.otp-inputs{display:flex;gap:8px;justify-content:center;margin:20px 0;}
+.otp-digit{width:46px;height:54px;background:var(--card2);border:2px solid var(--border);border-radius:12px;text-align:center;font-size:22px;font-weight:800;font-family:var(--mono);color:var(--text);outline:none;transition:all 0.2s;}
+.otp-digit:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,212,255,0.1);}
+.otp-timer{text-align:center;font-size:13px;color:var(--muted2);font-family:var(--mono);margin-bottom:16px;}
+.otp-timer span{color:var(--cyan);font-weight:700;}
+.resend-btn{background:none;border:none;cursor:pointer;color:var(--cyan);font-size:13px;font-weight:700;font-family:var(--font);text-decoration:underline;display:none;margin-top:8px;}
+.resend-btn.show{display:inline;}
+.success-wrap{text-align:center;padding:10px 0;}
+.s-icon{font-size:64px;animation:pop 0.5s ease;margin-bottom:14px;}
+@keyframes pop{0%{transform:scale(0)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+.s-title{font-size:26px;font-weight:900;color:var(--green);margin-bottom:10px;}
+.s-sub{font-size:14px;color:var(--muted2);line-height:1.6;margin-bottom:20px;}
+.s-bar{height:4px;background:var(--card2);border-radius:2px;overflow:hidden;}
+.s-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--green),var(--cyan));animation:fill 3s linear forwards;}
+@keyframes fill{from{width:0}to{width:100%}}
+.auth-terms{font-size:12px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.5;}
+.auth-terms a{color:var(--cyan);text-decoration:none;}
+.auth-footer{text-align:center;margin-top:18px;font-size:13px;color:var(--muted);position:relative;z-index:1;}
+.auth-footer a{color:var(--cyan);text-decoration:none;font-weight:600;}
+.toast{position:fixed;bottom:24px;right:20px;z-index:999;padding:12px 20px;border-radius:12px;border:1px solid var(--border);background:var(--card2);font-size:13px;font-weight:600;transform:translateX(130%);transition:transform 0.28s;max-width:280px;}
+.toast.show{transform:translateX(0);}
+.toast.ok{border-color:rgba(0,230,118,0.4);color:var(--green);}
+.toast.err{border-color:rgba(255,23,68,0.4);color:var(--red);}
+.toast.info{border-color:rgba(0,212,255,0.4);color:var(--cyan);}
+@media(max-width:480px){nav{padding:14px 20px;}.auth-card{padding:24px 18px;}.otp-digit{width:40px;height:48px;font-size:18px;}}
+</style>
+</head>
+<body>
+<div class="bg-layer"></div>
+<div class="bg-grid"></div>
+
+<nav>
+  <a class="nav-logo" href="/index.html">
+    <svg width="36" height="36" viewBox="0 0 90 90" fill="none">
+      <defs>
+        <linearGradient id="nc" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00d4ff"/><stop offset="100%" stop-color="#0099cc"/></linearGradient>
+        <linearGradient id="ng" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f5a623"/><stop offset="100%" stop-color="#e8530a"/></linearGradient>
+      </defs>
+      <circle cx="45" cy="45" r="45" fill="#0d2240"/>
+      <rect x="11" y="31" width="28" height="28" rx="14" fill="none" stroke="url(#nc)" stroke-width="5.5"/>
+      <rect x="51" y="31" width="28" height="28" rx="14" fill="none" stroke="url(#ng)" stroke-width="5.5"/>
+      <rect x="36" y="38.5" width="18" height="5" rx="2.5" fill="url(#nc)" opacity="0.55"/>
+      <rect x="36" y="46.5" width="18" height="5" rx="2.5" fill="url(#ng)" opacity="0.55"/>
+    </svg>
+    <span class="nav-logo-text">AlkaFolio</span>
+  </a>
+  <a class="nav-back" href="/index.html">← Back to Home</a>
+</nav>
+
+<div class="main">
+  <div class="auth-wrap">
+    <div class="auth-logo">
+      <svg width="60" height="60" viewBox="0 0 90 90" fill="none">
+        <defs>
+          <linearGradient id="alc" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00d4ff"/><stop offset="100%" stop-color="#0099cc"/></linearGradient>
+          <linearGradient id="alg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f5a623"/><stop offset="100%" stop-color="#e8530a"/></linearGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <circle cx="45" cy="45" r="45" fill="#0d2240"/>
+        <circle cx="45" cy="45" r="44" fill="none" stroke="url(#alc)" stroke-width="1" opacity="0.25"/>
+        <rect x="11" y="31" width="28" height="28" rx="14" fill="none" stroke="url(#alc)" stroke-width="5.5" filter="url(#glow)"/>
+        <rect x="51" y="31" width="28" height="28" rx="14" fill="none" stroke="url(#alg)" stroke-width="5.5" filter="url(#glow)"/>
+        <rect x="36" y="38.5" width="18" height="5" rx="2.5" fill="url(#alc)" opacity="0.55"/>
+        <rect x="36" y="46.5" width="18" height="5" rx="2.5" fill="url(#alg)" opacity="0.55"/>
+        <circle cx="25" cy="23" r="4" fill="url(#alc)" opacity="0.6"/>
+        <circle cx="65" cy="67" r="4" fill="url(#alg)" opacity="0.6"/>
+      </svg>
+      <div class="auth-logo-name">AlkaFolio</div>
+      <div class="auth-logo-tag">Multi-Chain Portfolio Tracker</div>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-tabs" id="tabsRow">
+        <button class="auth-tab active" onclick="switchTab('login')">Login</button>
+        <button class="auth-tab" onclick="switchTab('signup')">Sign Up</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div class="screen active" id="screen-login">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="loginEmail" type="email" placeholder="you@example.com"/>
+          <span class="form-error" id="loginEmailErr">Please enter a valid email</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="input-wrap">
+            <input class="form-input" id="loginPw" type="password" placeholder="Enter your password"/>
+            <button type="button" class="toggle-pw" onclick="togglePw('loginPw',this)">👁</button>
+          </div>
+          <span class="form-error" id="loginPwErr">Min 6 characters required</span>
+        </div>
+        <div class="form-meta">
+          <label class="remember"><input type="checkbox"/> Remember me</label>
+          <a class="forgot" href="#">Forgot password?</a>
+        </div>
+        <button class="btn-submit" id="loginBtn" onclick="handleLogin()">Login to AlkaFolio</button>
+      </div>
+
+      <!-- SIGNUP -->
+      <div class="screen" id="screen-signup">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input class="form-input" id="signupName" type="text" placeholder="Your full name"/>
+          <span class="form-error" id="signupNameErr">Please enter your name</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="signupEmail" type="email" placeholder="you@example.com"/>
+          <span class="form-error" id="signupEmailErr">Please enter a valid email</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="input-wrap">
+            <input class="form-input" id="signupPw" type="password" placeholder="Create a strong password" oninput="checkStrength(this.value)"/>
+            <button type="button" class="toggle-pw" onclick="togglePw('signupPw',this)">👁</button>
+          </div>
+          <div class="pw-strength"><div class="pw-bar" id="b1"></div><div class="pw-bar" id="b2"></div><div class="pw-bar" id="b3"></div><div class="pw-bar" id="b4"></div></div>
+          <div class="pw-label" id="pwLabel">Enter a password</div>
+          <span class="form-error" id="signupPwErr">Min 6 characters required</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <div class="input-wrap">
+            <input class="form-input" id="signupPw2" type="password" placeholder="Repeat your password"/>
+            <button type="button" class="toggle-pw" onclick="togglePw('signupPw2',this)">👁</button>
+          </div>
+          <span class="form-error" id="signupPw2Err">Passwords do not match</span>
+        </div>
+        <button class="btn-submit gold" id="signupBtn" onclick="handleSignup()">Send Verification Code</button>
+        <div class="auth-terms">By signing up you agree to our <a href="#">Terms</a> & <a href="#">Privacy Policy</a></div>
+      </div>
+
+      <!-- OTP -->
+      <div class="screen" id="screen-otp">
+        <div class="otp-header">
+          <div class="otp-icon">📧</div>
+          <div class="otp-title">Check Your Email!</div>
+          <div class="otp-sub">We sent a 6-digit code to<br><span class="otp-email" id="otpEmailShow"></span></div>
+        </div>
+        <div class="otp-inputs">
+          <input class="otp-digit" id="d1" maxlength="1" type="text" inputmode="numeric" oninput="oNext(this,'d2')" onkeydown="oBack(event,this,'')"/>
+          <input class="otp-digit" id="d2" maxlength="1" type="text" inputmode="numeric" oninput="oNext(this,'d3')" onkeydown="oBack(event,this,'d1')"/>
+          <input class="otp-digit" id="d3" maxlength="1" type="text" inputmode="numeric" oninput="oNext(this,'d4')" onkeydown="oBack(event,this,'d2')"/>
+          <input class="otp-digit" id="d4" maxlength="1" type="text" inputmode="numeric" oninput="oNext(this,'d5')" onkeydown="oBack(event,this,'d3')"/>
+          <input class="otp-digit" id="d5" maxlength="1" type="text" inputmode="numeric" oninput="oNext(this,'d6')" onkeydown="oBack(event,this,'d4')"/>
+          <input class="otp-digit" id="d6" maxlength="1" type="text" inputmode="numeric" oninput="oNext(this,'')" onkeydown="oBack(event,this,'d5')"/>
+        </div>
+        <div class="otp-timer">Code expires in <span id="timerTxt">10:00</span><br>
+          <button class="resend-btn" id="resendBtn" onclick="resendOTP()">Resend Code</button>
+        </div>
+        <button class="btn-submit" id="verifyBtn" onclick="verifyOTP()">Verify & Create Account</button>
+        <div style="text-align:center;margin-top:14px">
+          <a href="#" style="color:var(--muted2);font-size:13px;text-decoration:none" onclick="event.preventDefault();switchTab('signup')">← Go back</a>
+        </div>
+      </div>
+
+      <!-- SUCCESS -->
+      <div class="screen" id="screen-success">
+        <div class="success-wrap">
+          <div class="s-icon">🎉</div>
+          <div class="s-title">Congratulations!</div>
+          <div class="s-sub">Your AlkaFolio account has been created successfully!<br><br>Welcome to the future of Web3 portfolio tracking.</div>
+          <div class="s-bar"><div class="s-fill"></div></div>
+          <div style="font-size:12px;color:var(--muted);margin-top:10px;font-family:var(--mono)">Redirecting to dashboard...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-footer" id="authFooter">
+      Don't have an account? <a href="#" onclick="event.preventDefault();switchTab('signup')">Sign Up</a>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+const API = 'https://alkafolio-api.onrender.com';
+let userEmail = '', timer = null;
+
+function showToast(msg, type='ok'){
+  const el=document.getElementById('toastEl');
+  el.textContent=msg; el.className=`toast ${type} show`;
+  setTimeout(()=>el.className='toast',3500);
+}
+
+function switchTab(tab){
+  ['login','signup','otp','success'].forEach(s=>document.getElementById('screen-'+s).classList.remove('active'));
+  document.getElementById('screen-'+tab).classList.add('active');
+  const tabs=document.querySelectorAll('.auth-tab');
+  const footer=document.getElementById('authFooter');
+  const tabsRow=document.getElementById('tabsRow');
+  if(tab==='login'){
+    tabs[0].classList.add('active');tabs[1].classList.remove('active');
+    tabsRow.style.display='flex';
+    footer.innerHTML='Don\'t have an account? <a href="#" onclick="event.preventDefault();switchTab(\'signup\')">Sign Up</a>';
+  }else if(tab==='signup'){
+    tabs[1].classList.add('active');tabs[0].classList.remove('active');
+    tabsRow.style.display='flex';
+    footer.innerHTML='Already have an account? <a href="#" onclick="event.preventDefault();switchTab(\'login\')">Login</a>';
+  }else{
+    tabsRow.style.display='none';
+    footer.innerHTML='';
+  }
+}
+
+function togglePw(id,btn){
+  const el=document.getElementById(id);
+  el.type=el.type==='password'?'text':'password';
+  btn.textContent=el.type==='password'?'👁':'🙈';
+}
+
+function checkStrength(pw){
+  let s=0;
+  if(pw.length>=6)s++;if(pw.length>=10)s++;
+  if(/[A-Z]/.test(pw)&&/[0-9]/.test(pw))s++;
+  if(/[^A-Za-z0-9]/.test(pw))s++;
+  const c=['#ff1744','#ff9100','#f5a623','#00e676'];
+  const l=['Weak','Fair','Good','Strong'];
+  [1,2,3,4].forEach(i=>document.getElementById('b'+i).style.background=i<=s?c[s-1]:'var(--card2)');
+  const lbl=document.getElementById('pwLabel');
+  lbl.textContent=pw.length===0?'Enter a password':(l[s-1]||'Weak');
+  lbl.style.color=pw.length===0?'var(--muted)':(c[s-1]||'#ff1744');
+}
+
+function vEmail(e){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);}
+function showErr(id,show){document.getElementById(id).classList.toggle('show',show);}
+
+// ── LOGIN ──
+async function handleLogin(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const pw=document.getElementById('loginPw').value;
+  let ok=true;
+  if(!vEmail(email)){showErr('loginEmailErr',true);ok=false;}else showErr('loginEmailErr',false);
+  if(pw.length<6){showErr('loginPwErr',true);ok=false;}else showErr('loginPwErr',false);
+  if(!ok)return;
+
+  const btn=document.getElementById('loginBtn');
+  btn.textContent='Logging in...';btn.disabled=true;
+
+  try{
+    const res=await fetch(`${API}/api/auth/login`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pw})
+    });
+    const data=await res.json();
+    if(res.ok){
+      localStorage.setItem('alka_token',data.token);
+      localStorage.setItem('alka_name',data.user?.name||'User');
+      showToast('Login successful!','ok');
+      setTimeout(()=>window.location.href='/app.html',1000);
+    }else{
+      showToast(data.message||'Login failed','err');
+      btn.textContent='Login to AlkaFolio';btn.disabled=false;
+    }
+  }catch(e){
+    showToast('Server error. Try again!','err');
+    btn.textContent='Login to AlkaFolio';btn.disabled=false;
+  }
+}
+
+// ── SIGNUP ──
+async function handleSignup(){
+  const name=document.getElementById('signupName').value.trim();
+  const email=document.getElementById('signupEmail').value.trim();
+  const pw=document.getElementById('signupPw').value;
+  const pw2=document.getElementById('signupPw2').value;
+  let ok=true;
+  if(!name){showErr('signupNameErr',true);ok=false;}else showErr('signupNameErr',false);
+  if(!vEmail(email)){showErr('signupEmailErr',true);ok=false;}else showErr('signupEmailErr',false);
+  if(pw.length<6){showErr('signupPwErr',true);ok=false;}else showErr('signupPwErr',false);
+  if(pw!==pw2){showErr('signupPw2Err',true);ok=false;}else showErr('signupPw2Err',false);
+  if(!ok)return;
+
+  const btn=document.getElementById('signupBtn');
+  btn.textContent='Sending...';btn.disabled=true;
+  userEmail=email;
+
+  try{
+    const res=await fetch(`${API}/api/auth/signup`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name,email,password:pw})
+    });
+    const data=await res.json();
+    if(res.ok){
+      document.getElementById('otpEmailShow').textContent=email;
+      switchTab('otp');
+      startTimer(600);
+      showToast('OTP sent to your email!','ok');
+    }else{
+      showToast(data.message||'Signup failed','err');
+    }
+  }catch(e){
+    showToast('Server error. Try again!','err');
+  }
+  btn.textContent='Send Verification Code';btn.disabled=false;
+}
+
+// ── OTP ──
+function oNext(el,nid){
+  el.value=el.value.replace(/[^0-9]/g,'');
+  if(el.value&&nid)document.getElementById(nid).focus();
+  if(getOTP().length===6)setTimeout(verifyOTP,400);
+}
+function oBack(e,el,pid){if(e.key==='Backspace'&&!el.value&&pid)document.getElementById(pid).focus();}
+function getOTP(){return['d1','d2','d3','d4','d5','d6'].map(id=>document.getElementById(id).value).join('');}
+
+async function verifyOTP(){
+  const otp=getOTP();
+  if(otp.length<6){showToast('Enter all 6 digits','err');return;}
+
+  const btn=document.getElementById('verifyBtn');
+  btn.textContent='Verifying...';btn.disabled=true;
+
+  try{
+    const res=await fetch(`${API}/api/auth/verify-otp`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:userEmail,otp})
+    });
+    const data=await res.json();
+    if(res.ok){
+      localStorage.setItem('alka_token',data.token);
+      localStorage.setItem('alka_name',data.user?.name||'User');
+      clearInterval(timer);
+      switchTab('success');
+      showToast('Account created!','ok');
+      setTimeout(()=>window.location.href='/app.html',3500);
+    }else{
+      showToast(data.message||'Wrong OTP','err');
+      ['d1','d2','d3','d4','d5','d6'].forEach(id=>{
+        const el=document.getElementById(id);
+        el.value='';el.style.borderColor='rgba(255,23,68,0.6)';
+        setTimeout(()=>el.style.borderColor='',1500);
+      });
+      document.getElementById('d1').focus();
+    }
+  }catch(e){
+    showToast('Server error. Try again!','err');
+  }
+  btn.textContent='Verify & Create Account';btn.disabled=false;
+}
+
+async function resendOTP(){
+  try{
+    await fetch(`${API}/api/auth/resend-otp`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:userEmail})
+    });
+    startTimer(600);
+    document.getElementById('resendBtn').classList.remove('show');
+    showToast('OTP resent!','ok');
+  }catch(e){showToast('Failed to resend','err');}
+}
+
+function startTimer(s){
+  clearInterval(timer);
+  document.getElementById('resendBtn').classList.remove('show');
+  let rem=s;
+  updateTimer(rem);
+  timer=setInterval(()=>{
+    rem--;updateTimer(rem);
+    if(rem<=0){clearInterval(timer);document.getElementById('timerTxt').textContent='Expired';document.getElementById('resendBtn').classList.add('show');}
+  },1000);
+}
+function updateTimer(s){
+  const m=Math.floor(s/60),sec=s%60;
+  document.getElementById('timerTxt').textContent=`${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+</script>
+</body>
+</html>
