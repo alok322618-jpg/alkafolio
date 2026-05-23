@@ -32,11 +32,10 @@ app.use('/api', walletRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', pricesRoutes);
 
-// Fallback: serve index.html for any non-API route
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(join(__dirname, 'public', 'index.html'));
-  }
+// Fallback: serve index.html for any unmatched non-API request
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  res.sendFile(join(__dirname, 'public', 'index.html'));
 });
 
 // Connect to MongoDB then start server
