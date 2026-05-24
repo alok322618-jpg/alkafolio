@@ -26,27 +26,34 @@ async function sendOtpEmail(email, otp) {
 // POST /api/auth/signup
 router.post('/auth/signup', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { name, email, password } = req.body;
     if (!email || !password)
-      return res.status(400).json({ error: 'email and password are required' });
+      return res.status(400).json({ message: 'Email and password are required' });
 
     const existing = await User.findOne({ email });
-    if (existing) return res.status(409).json({ error: 'Email already registered' });
+    if (existing && existing.isVerified)
+      return res.status(409).json({ message: 'Email already registered' });
+
+    if (existing && !existing.isVerified) {
+      await User.deleteOne({ email });
+    }
 
     const passwordHash = await bcrypt.hash(password, 12);
     const otp = generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    const user = await User.create({ email, passwordHash, otp, otpExpiry });
+    const user = await User.create({ name: name || 'User', email, passwordHash, otp, otpExpiry });
 
     try {
       await sendOtpEmail(email, otp);
-      res.status(201).json({ message: 'User created. Check your email for OTP.', userId: user._id });
-    } catch {
-      res.status(201).json({ message: 'User created. Email send failed.', otp, userId: user._id });
+      res.status(201).json({ message: 'OTP sent to your email!', userId: user._id });
+    } catch (emailErr) {
+      console.error('Email error:', emailErr.message);
+      res.status(201).json({ message: 'Account created. Email failed — use this OTP:', otp, userId: user._id });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Signup error:', err.message);
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -54,13 +61,14 @@ router.post('/auth/signup', async (req, res) => {
 router.post('/auth/verify-otp', async (req, res) => {
   try {
     const { email, otp } = req.body;
-    if (!email || !otp) return res.status(400).json({ error: 'email and otp are required' });
+    if (!email || !otp)
+      return res.status(400).json({ message: 'Email and OTP are required' });
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    if (user.isVerified) return res.status(400).json({ error: 'Email already verified' });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.isVerified) return res.status(400).json({ message: 'Email already verified' });
     if (!user.otp || user.otp !== otp || user.otpExpiry < new Date())
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
 
     user.isVerified = true;
     user.otp = null;
@@ -68,9 +76,10 @@ router.post('/auth/verify-otp', async (req, res) => {
     await user.save();
 
     const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ message: 'Email verified successfully', token });
+    res.json({ message: 'Email verified!', token, user: { name: user.name, email: user.email } });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Verify OTP error:', err.message);
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -79,20 +88,21 @@ router.post('/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password)
-      return res.status(400).json({ error: 'email and password are required' });
+      return res.status(400).json({ message: 'Email and password are required' });
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
     if (!user.isVerified)
-      return res.status(403).json({ error: 'Email not verified. Please verify your OTP first.' });
+      return res.status(403).json({ message: 'Email not verified. Please verify OTP first.' });
 
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!valid) return res.status(401).json({ message: 'Invalid credentials' });
 
     const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ message: 'Login successful', token, userId: user._id });
+    res.json({ message: 'Login successful', token, user: { name: user.name, email: user.email } });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Login error:', err.message);
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -100,11 +110,11 @@ router.post('/auth/login', async (req, res) => {
 router.post('/auth/resend-otp', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'email is required' });
+    if (!email) return res.status(400).json({ message: 'Email is required' });
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    if (user.isVerified) return res.status(400).json({ error: 'Email already verified' });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.isVerified) return res.status(400).json({ message: 'Email already verified' });
 
     const otp = generateOtp();
     user.otp = otp;
@@ -113,12 +123,12 @@ router.post('/auth/resend-otp', async (req, res) => {
 
     try {
       await sendOtpEmail(email, otp);
-      res.json({ message: 'OTP resent successfully' });
+      res.json({ message: 'OTP resent!' });
     } catch {
-      res.status(500).json({ error: 'Failed to send OTP email', otp });
+      res.status(500).json({ message: 'Failed to send OTP', otp });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
