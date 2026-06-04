@@ -18,9 +18,11 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
 
-      - key: EMAIL_USER
+      - key: EMAILJS_SERVICE_ID
         sync: false
-      - key: EMAIL_PASS
+      - key: EMAILJS_TEMPLATE_ID
+        sync: false
+      - key: EMAILJS_PUBLIC_KEY
         sync: false
 
       - key: COINGECKO_API_KEY
