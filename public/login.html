@@ -139,7 +139,7 @@ nav{position:relative;z-index:10;display:flex;align-items:center;justify-content
           <label class="form-label">Password</label>
           <div class="input-wrap">
             <input class="form-input" id="loginPw" type="password" placeholder="Enter your password"/>
-            <button type="button" class="toggle-pw" onclick="togglePw('loginPw',this)">👁</button>
+            <button type="button" class="toggle-pw" onclick="togglePw('loginPw',this)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
           </div>
           <span class="form-error" id="loginPwErr">Min 6 characters required</span>
         </div>
@@ -166,7 +166,7 @@ nav{position:relative;z-index:10;display:flex;align-items:center;justify-content
           <label class="form-label">Password</label>
           <div class="input-wrap">
             <input class="form-input" id="signupPw" type="password" placeholder="Create a strong password" oninput="checkStrength(this.value)"/>
-            <button type="button" class="toggle-pw" onclick="togglePw('signupPw',this)">👁</button>
+            <button type="button" class="toggle-pw" onclick="togglePw('signupPw',this)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
           </div>
           <div class="pw-strength"><div class="pw-bar" id="b1"></div><div class="pw-bar" id="b2"></div><div class="pw-bar" id="b3"></div><div class="pw-bar" id="b4"></div></div>
           <div class="pw-label" id="pwLabel">Enter a password</div>
@@ -176,7 +176,7 @@ nav{position:relative;z-index:10;display:flex;align-items:center;justify-content
           <label class="form-label">Confirm Password</label>
           <div class="input-wrap">
             <input class="form-input" id="signupPw2" type="password" placeholder="Repeat your password"/>
-            <button type="button" class="toggle-pw" onclick="togglePw('signupPw2',this)">👁</button>
+            <button type="button" class="toggle-pw" onclick="togglePw('signupPw2',this)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
           </div>
           <span class="form-error" id="signupPw2Err">Passwords do not match</span>
         </div>
@@ -187,7 +187,9 @@ nav{position:relative;z-index:10;display:flex;align-items:center;justify-content
       <!-- OTP -->
       <div class="screen" id="screen-otp">
         <div class="otp-header">
-          <div class="otp-icon">📧</div>
+          <div class="otp-icon">
+            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </div>
           <div class="otp-title">Check Your Email!</div>
           <div class="otp-sub">We sent a 6-digit code to<br><span class="otp-email" id="otpEmailShow"></span></div>
         </div>
@@ -211,7 +213,9 @@ nav{position:relative;z-index:10;display:flex;align-items:center;justify-content
       <!-- SUCCESS -->
       <div class="screen" id="screen-success">
         <div class="success-wrap">
-          <div class="s-icon">🎉</div>
+          <div class="s-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
           <div class="s-title">Congratulations!</div>
           <div class="s-sub">Your AlkaFolio account has been created successfully!<br><br>Welcome to the future of Web3 portfolio tracking.</div>
           <div class="s-bar"><div class="s-fill"></div></div>
@@ -258,10 +262,13 @@ function switchTab(tab){
   }
 }
 
+const eyeOpen=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const eyeOff=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+
 function togglePw(id,btn){
   const el=document.getElementById(id);
   el.type=el.type==='password'?'text':'password';
-  btn.textContent=el.type==='password'?'👁':'🙈';
+  btn.innerHTML=el.type==='password'?eyeOpen:eyeOff;
 }
 
 function checkStrength(pw){
@@ -295,7 +302,9 @@ async function handleLogin(){
   try{
     const res=await fetch(`${API}/api/auth/login`,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      mode:'cors',
+      credentials:'omit',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
       body:JSON.stringify({email,password:pw})
     });
     const data=await res.json();
@@ -334,7 +343,9 @@ async function handleSignup(){
   try{
     const res=await fetch(`${API}/api/auth/signup`,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      mode:'cors',
+      credentials:'omit',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
       body:JSON.stringify({name,email,password:pw})
     });
     const data=await res.json();
@@ -344,10 +355,13 @@ async function handleSignup(){
       startTimer(600);
       showToast('OTP sent to your email!','ok');
     }else{
+      alert('Server error: '+JSON.stringify(data));
       showToast(data.message||'Signup failed','err');
     }
   }catch(e){
-    showToast('Server error. Try again!','err');
+    console.error('Signup error:', e);
+    showToast(e.message||'Network error','err');
+    alert('Debug: '+e.message);
   }
   btn.textContent='Send Verification Code';btn.disabled=false;
 }
@@ -371,7 +385,9 @@ async function verifyOTP(){
   try{
     const res=await fetch(`${API}/api/auth/verify-otp`,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      mode:'cors',
+      credentials:'omit',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
       body:JSON.stringify({email:userEmail,otp})
     });
     const data=await res.json();
