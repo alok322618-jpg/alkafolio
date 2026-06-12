@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Connection, PublicKey, LAMPORTS_PER_SOL, clusterApiUrl } from '@solana/web3.js';
+import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { ethers } from 'ethers';
 import TonWeb from 'tonweb';
 import jwt from 'jsonwebtoken';
@@ -7,7 +7,7 @@ import { Wallet } from '../models/Wallet.js';
 
 const router = Router();
 
-const solConnection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
+const connection = new Connection('https://api.mainnet-beta.solana.com');
 const ethProvider = new ethers.JsonRpcProvider('https://eth.llamarpc.com');
 const tonweb = new TonWeb(new TonWeb.HttpProvider('https://toncenter.com/api/v2/jsonRPC'));
 
@@ -15,7 +15,6 @@ function requireAuth(req, res, next) {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer '))
     return res.status(401).json({ error: 'Missing or invalid Authorization header' });
-
   try {
     const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
     req.userId = payload.userId;
@@ -27,8 +26,10 @@ function requireAuth(req, res, next) {
 
 async function fetchBalance(address, chain) {
   if (chain === 'solana') {
-    const lamports = await solConnection.getBalance(new PublicKey(address));
-    return { balance: lamports / LAMPORTS_PER_SOL, unit: 'SOL' };
+    const pubKey = new PublicKey(address);
+    const lamports = await connection.getBalance(pubKey);
+    const balance = lamports / LAMPORTS_PER_SOL;
+    return { balance, unit: 'SOL' };
   }
   if (chain === 'ethereum') {
     const wei = await ethProvider.getBalance(address);
@@ -94,7 +95,14 @@ router.get('/wallets/balances', requireAuth, async (req, res) => {
     const balances = results.map((r, i) =>
       r.status === 'fulfilled'
         ? r.value
-        : { id: wallets[i]._id, address: wallets[i].address, chain: wallets[i].chain, label: wallets[i].label, balance: null, error: 'Failed to fetch balance' }
+        : {
+            id: wallets[i]._id,
+            address: wallets[i].address,
+            chain: wallets[i].chain,
+            label: wallets[i].label,
+            balance: null,
+            error: 'Failed to fetch balance',
+          }
     );
     res.json({ balances });
   } catch (err) {
