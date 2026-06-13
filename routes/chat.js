@@ -3,11 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import jwt from 'jsonwebtoken';
 
 const router = Router();
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-const SYSTEM_PROMPT = `You are AlkaBot, an expert AI assistant for AlkaFolio — a multi-chain crypto portfolio tracker.
-You help users understand their crypto holdings, explain blockchain concepts, analyze portfolio strategies, and provide educational insights about DeFi, Solana, Ethereum, TON, and the broader crypto ecosystem.
-Be concise, accurate, and helpful. Do not provide financial advice or price predictions.`;
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 function requireAuth(req, res, next) {
   const header = req.headers.authorization;
@@ -25,21 +21,22 @@ function requireAuth(req, res, next) {
 // POST /api/chat
 router.post('/chat', requireAuth, async (req, res) => {
   try {
-    const { messages } = req.body;
-    if (!messages || !Array.isArray(messages) || messages.length === 0)
-      return res.status(400).json({ error: 'messages array is required' });
-    if (messages[messages.length - 1]?.role !== 'user')
-      return res.status(400).json({ error: "Last message must have role 'user'" });
+    const { message, history } = req.body;
+    if (!message) return res.status(400).json({ error: 'message is required' });
 
-    const response = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+    const messages = [...(history || []).slice(-8)];
+    if (!messages.find(m => m.role === 'user' && m.content === message)) {
+      messages.push({ role: 'user', content: message });
+    }
+
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      system: `You are AlkaBot, assistant for AlkaFolio — a multi-chain crypto portfolio tracker. Only answer questions about AlkaFolio, Solana, Ethereum, TON, wallets, and P&L. Politely decline off-topic questions.`,
       messages,
     });
 
-    const reply = response.content.find((c) => c.type === 'text')?.text || '';
-    res.json({ role: 'assistant', content: reply, usage: response.usage });
+    res.json({ reply: response.content[0].text });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -48,18 +45,22 @@ router.post('/chat', requireAuth, async (req, res) => {
 // POST /api/chat/stream
 router.post('/chat/stream', requireAuth, async (req, res) => {
   try {
-    const { messages } = req.body;
-    if (!messages || !Array.isArray(messages) || messages.length === 0)
-      return res.status(400).json({ error: 'messages array is required' });
+    const { message, history } = req.body;
+    if (!message) return res.status(400).json({ error: 'message is required' });
+
+    const messages = [...(history || []).slice(-8)];
+    if (!messages.find(m => m.role === 'user' && m.content === message)) {
+      messages.push({ role: 'user', content: message });
+    }
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    const stream = anthropic.messages.stream({
-      model: 'claude-opus-4-5',
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+    const stream = client.messages.stream({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      system: `You are AlkaBot, assistant for AlkaFolio — a multi-chain crypto portfolio tracker. Only answer questions about AlkaFolio, Solana, Ethereum, TON, wallets, and P&L. Politely decline off-topic questions.`,
       messages,
     });
 
