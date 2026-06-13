@@ -603,11 +603,6 @@ tr:hover td{background:rgba(0,212,255,0.015);}
             <option>EUR — Euro</option>
           </select>
         </div>
-        <div class="settings-row">
-          <label class="settings-lbl">Anthropic API Key</label>
-          <input class="settings-inp" id="sApiKey" type="password" placeholder="sk-ant-..."/>
-          <div class="settings-hint">Required for AlkaBot AI. Get it from console.anthropic.com</div>
-        </div>
         <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
       </div>
     </div>
@@ -652,26 +647,13 @@ tr:hover td{background:rgba(0,212,255,0.015);}
 // CONFIG
 // ════════════════════════════════════
 const API = 'https://alkafolio-api.onrender.com';
-let API_KEY = localStorage.getItem('alka_api_key')||'';
-let AUTH_TOKEN = localStorage.getItem('alka_token')||'';
-
-const BOT_SYSTEM=`You are AlkaBot, the AI assistant for AlkaFolio — a multi-chain crypto portfolio tracker supporting Phantom (Solana), MetaMask (Ethereum), and Tonkeeper (TON).
-
-ONLY answer questions about:
-- AlkaFolio features and usage
-- Wallet connections (Phantom, MetaMask, Tonkeeper)
-- Solana, Ethereum, TON blockchain basics
-- Crypto P&L and portfolio tracking
-- Supported tokens and chains
-
-If asked anything else, respond: "I can only help with AlkaFolio and Web3 related questions."
-
-Key facts: Max 5 wallets, read-only access, P&L = Today's Value - Yesterday's Value, supports SOL/ETH/TON chains. Be concise and helpful.`;
+let AUTH_TOKEN = localStorage.getItem('alka_token') || '';
+if (!AUTH_TOKEN) { window.location.href = '/login.html'; }
 
 // ════════════════════════════════════
 // STATE
 // ════════════════════════════════════
-let wallets=[];
+let wallets = JSON.parse(localStorage.getItem('alka_wallets') || '[]');
 let livePrices={SOL:153.06,ETH:2910.44,BTC:66420,TON:5.28,USDC:1.00,BONK:0.0000218,JUP:0.54,WIF:1.12};
 let chatHistory=[];
 let curRange='7';
@@ -832,36 +814,56 @@ function addWallet(){
   document.getElementById('wAddr').value='';
   document.getElementById('wLabel').value='';
   showToast(`${label} added`,'ok');
-  fetchWalletBalance(wallets[wallets.length-1]);
 }
 
-function addWalletData(w){
+function saveWallets(){
+  localStorage.setItem('alka_wallets',JSON.stringify(wallets));
+}
+
+async function addWalletData(w){
   if(wallets.length>=5){showToast('Maximum 5 wallets','err');return;}
   wallets.push({id:Date.now(),...w});
+  saveWallets();
   renderAll();
+  try{
+    const chainMap={SOL:'solana',ETH:'ethereum',TON:'ton'};
+    await fetch(`${API}/api/wallets`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${AUTH_TOKEN}`},
+      body:JSON.stringify({address:w.addr,chain:chainMap[w.chain]||w.chain.toLowerCase(),label:w.label})
+    });
+  }catch(e){console.log('Backend sync error:',e.message);}
+  fetchWalletBalances();
 }
 
-async function fetchWalletBalance(w){
+async function fetchWalletBalances(){
+  if(!wallets.length)return;
   try{
-    const headers=AUTH_TOKEN?{'Authorization':`Bearer ${AUTH_TOKEN}`}:{};
-    const r=await fetch(`${API}/api/wallets/balance/${w.addr}?chain=${w.chain}`,{headers});
+    const r=await fetch(`${API}/api/wallets/balances`,{
+      headers:{'Authorization':`Bearer ${AUTH_TOKEN}`}
+    });
     const d=await r.json();
-    if(d.balance!==undefined){
-      const idx=wallets.findIndex(wl=>wl.id===w.id);
-      if(idx>=0){
-        const price=livePrices[w.chain]||0;
-        wallets[idx].sol=+d.balance.toFixed(4);
-        wallets[idx].usd=+(d.balance*price).toFixed(2);
-        renderAll();
-      }
+    if(d.balances){
+      const chainMap={solana:'SOL',ethereum:'ETH',ton:'TON'};
+      d.balances.forEach(b=>{
+        if(b.balance==null)return;
+        const chain=chainMap[b.chain]||b.chain.toUpperCase();
+        const price=livePrices[chain]||0;
+        const idx=wallets.findIndex(w=>w.addr===b.address);
+        if(idx>=0){
+          wallets[idx].sol=+b.balance.toFixed(4);
+          wallets[idx].usd=+(b.balance*price).toFixed(2);
+        }
+      });
+      saveWallets();
+      renderAll();
     }
-  }catch(e){
-    console.log('Balance fetch error:',e.message);
-  }
+  }catch(e){console.log('Balance fetch error:',e.message);}
 }
 
 function removeWallet(id){
   wallets=wallets.filter(w=>w.id!==id);
+  saveWallets();
   renderAll();
   showToast('Wallet removed','info');
 }
@@ -987,8 +989,9 @@ function setPnl(btn,r){
 }
 
 function genData(days){
+  if(wallets.length===0)return{labels:[],values:[]};
   const labels=[],values=[];
-  let v=wallets.length?wallets.reduce((s,w)=>s+w.usd,0)*0.92:4800+Math.random()*2000;
+  let v=wallets.reduce((s,w)=>s+w.usd,0)*0.92||1000;
   for(let i=+days;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
     labels.push(d.toLocaleDateString('en',{month:'short',day:'numeric'}));
@@ -1014,6 +1017,7 @@ function drawCanvas(canvasId,days,color){
   canvas.height=H*devicePixelRatio;
   ctx.scale(devicePixelRatio,devicePixelRatio);
   ctx.clearRect(0,0,W,H);
+  if(values.length===0){ctx.fillStyle='rgba(58,106,138,0.7)';ctx.font='14px Outfit,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Connect a wallet to see chart data',W/2,H/2);return;}
   const p={t:16,r:16,b:26,l:54};
   const cw=W-p.l-p.r,ch=H-p.t-p.b;
   if(cw<=0||ch<=0)return;
@@ -1124,13 +1128,11 @@ async function sendMsg(){
 // ════════════════════════════════════
 function saveSettings(){
   const name=document.getElementById('sName').value.trim();
-  const key=document.getElementById('sApiKey').value.trim();
   if(name){
     document.getElementById('userName').textContent=name;
     document.getElementById('userAv').textContent=name[0].toUpperCase();
     localStorage.setItem('alka_name',name);
   }
-  if(key){API_KEY=key;localStorage.setItem('alka_api_key',key);}
   showToast('Settings saved','ok');
 }
 
@@ -1140,11 +1142,11 @@ function saveSettings(){
 window.addEventListener('load',()=>{
   const n=localStorage.getItem('alka_name');
   if(n){document.getElementById('userName').textContent=n;document.getElementById('userAv').textContent=n[0].toUpperCase();document.getElementById('sName').value=n;}
-  const k=localStorage.getItem('alka_api_key');
-  if(k){API_KEY=k;document.getElementById('sApiKey').value=k;}
 
+  renderAll();
+  fetchWalletBalances();
   fetchLivePrices();
-  setInterval(fetchLivePrices,60000); // Refresh every 60s
+  setInterval(fetchLivePrices,60000);
   drawChart('7');
   window.addEventListener('resize',()=>drawChart(curRange));
 });
