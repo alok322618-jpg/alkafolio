@@ -5,6 +5,19 @@ import jwt from 'jsonwebtoken';
 const router = Router();
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+const BOT_SYSTEM = `You are AlkaBot, the AI assistant for AlkaFolio — a multi-chain crypto portfolio tracker supporting Phantom (Solana), MetaMask (Ethereum), and Tonkeeper (TON).
+
+ONLY answer questions about:
+- AlkaFolio features and usage
+- Wallet connections (Phantom, MetaMask, Tonkeeper)
+- Solana, Ethereum, TON blockchain basics
+- Crypto P&L and portfolio tracking
+- Supported tokens and chains
+
+If asked anything else, respond: "I can only help with AlkaFolio and Web3 related questions."
+
+Key facts: Max 5 wallets, read-only access, P&L = Today's Value - Yesterday's Value, supports SOL/ETH/TON chains. Be concise and helpful.`;
+
 function requireAuth(req, res, next) {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer '))
@@ -30,9 +43,9 @@ router.post('/chat', requireAuth, async (req, res) => {
     }
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5',
       max_tokens: 500,
-      system: `You are AlkaBot, assistant for AlkaFolio — a multi-chain crypto portfolio tracker. Only answer questions about AlkaFolio, Solana, Ethereum, TON, wallets, and P&L. Politely decline off-topic questions.`,
+      system: BOT_SYSTEM,
       messages,
     });
 
@@ -58,9 +71,9 @@ router.post('/chat/stream', requireAuth, async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
 
     const stream = client.messages.stream({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5',
       max_tokens: 500,
-      system: `You are AlkaBot, assistant for AlkaFolio — a multi-chain crypto portfolio tracker. Only answer questions about AlkaFolio, Solana, Ethereum, TON, wallets, and P&L. Politely decline off-topic questions.`,
+      system: BOT_SYSTEM,
       messages,
     });
 
