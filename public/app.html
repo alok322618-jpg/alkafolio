@@ -657,6 +657,7 @@ let wallets = JSON.parse(localStorage.getItem('alka_wallets') || '[]');
 let livePrices={SOL:153.06,ETH:2910.44,BTC:66420,TON:5.28,USDC:1.00,BONK:0.0000218,JUP:0.54,WIF:1.12};
 let chatHistory=[];
 let curRange='7';
+let chartDataCache={};
 
 const TOKENS=[
   {n:'Solana',s:'SOL',chg:2.4,col:'#9945ff'},
@@ -857,6 +858,7 @@ async function fetchWalletBalances(){
         }
       });
       saveWallets();
+      chartDataCache={};
       renderAll();
     }
   }catch(e){console.log('Balance fetch error:',e.message);}
@@ -955,21 +957,30 @@ function renderTokens(){
     tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:50px;color:var(--muted)">Connect wallets to see tokens</td></tr>`;
     return;
   }
-  const fmt=p=>p<0.001?p.toFixed(7):p<1?'$'+p.toFixed(4):'$'+p.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
-  tbody.innerHTML=TOKENS.map(t=>{
-    const bal=+(Math.random()*80+0.5).toFixed(4);
-    const price=livePrices[t.s]||0;
-    const val=(bal*price);
-    const pos=t.chg>=0;
+  const chainMeta={
+    SOL:{name:'Solana',col:'#9945ff'},
+    ETH:{name:'Ethereum',col:'#627eea'},
+    TON:{name:'TON',col:'#0088cc'},
+  };
+  const fmt=p=>p<0.001?'$'+p.toFixed(7):p<1?'$'+p.toFixed(4):'$'+p.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const chgMap={SOL:'solana',ETH:'ethereum',TON:'the-open-network'};
+  tbody.innerHTML=wallets.map(w=>{
+    const meta=chainMeta[w.chain]||{name:w.chain,col:'#3a6a8a'};
+    const price=livePrices[w.chain]||0;
+    const balance=w.sol??0;
+    const usd=(balance*price);
+    const tok=TOKENS.find(t=>t.s===w.chain);
+    const chg=tok?tok.chg:null;
+    const chgHtml=chg!=null?`<span class="pill ${chg>=0?'up':'dn'}">${chg>=0?'▲':'▼'} ${Math.abs(chg)}%</span>`:`—`;
     return`<tr>
       <td><div class="tok-row">
-        <div class="tok-ico" style="background:${t.col}18;color:${t.col};font-weight:700;font-size:11px;font-family:var(--mono)">${t.s.slice(0,3)}</div>
-        <div><div class="tok-name">${t.n}</div><div class="tok-sym">${t.s}</div></div>
+        <div class="tok-ico" style="background:${meta.col}18;color:${meta.col};font-weight:700;font-size:11px;font-family:var(--mono)">${w.chain}</div>
+        <div><div class="tok-name">${meta.name}</div><div class="tok-sym">${w.chain} · ${w.label||w.addr.slice(0,8)+'…'}</div></div>
       </div></td>
-      <td style="font-family:var(--mono);font-size:12px">${bal}</td>
+      <td style="font-family:var(--mono);font-size:12px">${balance}</td>
       <td style="font-family:var(--mono);font-size:12px;color:var(--cyan)">${fmt(price)}</td>
-      <td style="font-weight:700">$${val.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-      <td><span class="pill ${pos?'up':'dn'}">${pos?'▲':'▼'} ${Math.abs(t.chg)}%</span></td>
+      <td style="font-weight:700">$${usd.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:4})}</td>
+      <td>${chgHtml}</td>
     </tr>`;
   }).join('');
 }
@@ -992,6 +1003,8 @@ function setPnl(btn,r){
 function genData(days){
   const total=wallets.reduce((s,w)=>s+w.usd,0);
   if(!wallets.length||total===0)return{labels:[],values:[]};
+  const cacheKey=`${days}_${total.toFixed(6)}`;
+  if(chartDataCache[cacheKey])return chartDataCache[cacheKey];
   const labels=[],values=[];
   let v=total*0.92;
   const variation=Math.max(total*0.03,0.001);
@@ -1002,7 +1015,9 @@ function genData(days){
     v=Math.max(total*0.5,v);
     values.push(+v.toFixed(6));
   }
-  return{labels,values};
+  const result={labels,values};
+  chartDataCache[cacheKey]=result;
+  return result;
 }
 
 function drawCanvas(canvasId,days,color){
@@ -1128,14 +1143,31 @@ async function sendMsg(){
 // ════════════════════════════════════
 // SETTINGS
 // ════════════════════════════════════
-function saveSettings(){
+async function saveSettings(){
   const name=document.getElementById('sName').value.trim();
-  if(name){
+  if(!name){showToast('Please enter a display name','err');return;}
+  try{
+    const res=await fetch(`${API}/api/auth/me`,{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${AUTH_TOKEN}`},
+      body:JSON.stringify({name})
+    });
+    const data=await res.json();
+    if(res.ok){
+      document.getElementById('userName').textContent=name;
+      document.getElementById('userAv').textContent=name[0].toUpperCase();
+      localStorage.setItem('alka_name',name);
+      showToast('Settings saved','ok');
+    }else{
+      showToast(data.error||'Save failed','err');
+    }
+  }catch(e){
+    // Offline fallback — update UI locally
     document.getElementById('userName').textContent=name;
     document.getElementById('userAv').textContent=name[0].toUpperCase();
     localStorage.setItem('alka_name',name);
+    showToast('Saved locally (offline)','info');
   }
-  showToast('Settings saved','ok');
 }
 
 // ════════════════════════════════════
@@ -1151,14 +1183,15 @@ window.addEventListener('load',async()=>{
     const meRes=await fetch(`${API}/api/auth/me`,{
       headers:{'Authorization':`Bearer ${AUTH_TOKEN}`}
     });
+    console.log('auth/me status:',meRes.status);
     if(meRes.ok){
       const me=await meRes.json();
-      if(me.name){
-        document.getElementById('userName').textContent=me.name;
-        document.getElementById('userAv').textContent=me.name[0].toUpperCase();
-        document.getElementById('sName').value=me.name;
-        localStorage.setItem('alka_name',me.name);
-      }
+      console.log('auth/me response:',me);
+      const displayName=me.name||me.email?.split('@')[0]||'User';
+      document.getElementById('userName').textContent=displayName;
+      document.getElementById('userAv').textContent=displayName[0].toUpperCase();
+      document.getElementById('sName').value=me.name||'';
+      localStorage.setItem('alka_name',displayName);
     }
   }catch(e){console.log('Could not load user profile:',e.message);}
 
