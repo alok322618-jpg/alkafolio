@@ -47,8 +47,8 @@ async function sendOtpEmail(email, otp) {
 router.post('/auth/signup', async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    if (!name || !email || !password)
-      return res.status(400).json({ error: 'name, email and password are required' });
+    if (!email || !password)
+      return res.status(400).json({ error: 'email and password are required' });
 
     const existing = await User.findOne({ email });
     if (existing) return res.status(409).json({ error: 'Email already registered' });
@@ -57,7 +57,7 @@ router.post('/auth/signup', async (req, res) => {
     const otp = generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    const user = await User.create({ name, email, passwordHash, otp, otpExpiry });
+    const user = await User.create({ name: name || '', email, passwordHash, otp, otpExpiry });
 
     try {
       await sendOtpEmail(email, otp);
@@ -155,6 +155,24 @@ router.post('/auth/resend-otp', async (req, res) => {
 router.get('/auth/me', requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.userId).select('name email');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ name: user.name || '', email: user.email });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/auth/me — update display name
+router.patch('/auth/me', requireAuth, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim())
+      return res.status(400).json({ error: 'name is required' });
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { name: name.trim() },
+      { new: true, select: 'name email' }
+    );
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ name: user.name, email: user.email });
   } catch (err) {
