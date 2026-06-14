@@ -5,6 +5,19 @@ import { User } from '../models/User.js';
 
 const router = Router();
 
+function requireAuth(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer '))
+    return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+  try {
+    const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
+    req.userId = payload.userId;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
 function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -33,9 +46,9 @@ async function sendOtpEmail(email, otp) {
 // POST /api/auth/signup
 router.post('/auth/signup', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password)
-      return res.status(400).json({ error: 'email and password are required' });
+    const { name, email, password } = req.body;
+    if (!name || !email || !password)
+      return res.status(400).json({ error: 'name, email and password are required' });
 
     const existing = await User.findOne({ email });
     if (existing) return res.status(409).json({ error: 'Email already registered' });
@@ -44,7 +57,7 @@ router.post('/auth/signup', async (req, res) => {
     const otp = generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    const user = await User.create({ email, passwordHash, otp, otpExpiry });
+    const user = await User.create({ name, email, passwordHash, otp, otpExpiry });
 
     try {
       await sendOtpEmail(email, otp);
@@ -75,7 +88,11 @@ router.post('/auth/verify-otp', async (req, res) => {
     await user.save();
 
     const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ message: 'Email verified successfully', token });
+    res.json({
+      message: 'Email verified successfully',
+      token,
+      user: { name: user.name, email: user.email },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -97,7 +114,12 @@ router.post('/auth/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
     const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ message: 'Login successful', token, userId: user._id });
+    res.json({
+      message: 'Login successful',
+      token,
+      userId: user._id,
+      user: { name: user.name, email: user.email },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -124,6 +146,17 @@ router.post('/auth/resend-otp', async (req, res) => {
     } catch (emailErr) {
       res.status(500).json({ error: 'Failed to send OTP email', otp, emailError: emailErr.message });
     }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/auth/me
+router.get('/auth/me', requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('name email');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ name: user.name, email: user.email });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
