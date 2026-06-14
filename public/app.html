@@ -851,6 +851,7 @@ async function fetchWalletBalances(){
         const price=livePrices[chain]||0;
         const idx=wallets.findIndex(w=>w.addr===b.address);
         if(idx>=0){
+          console.log('Balance fetched:',b.address,b.balance,b.unit);
           wallets[idx].sol=+b.balance.toFixed(4);
           wallets[idx].usd=+(b.balance*price).toFixed(2);
         }
@@ -989,14 +990,17 @@ function setPnl(btn,r){
 }
 
 function genData(days){
-  if(wallets.length===0)return{labels:[],values:[]};
+  const total=wallets.reduce((s,w)=>s+w.usd,0);
+  if(!wallets.length||total===0)return{labels:[],values:[]};
   const labels=[],values=[];
-  let v=wallets.reduce((s,w)=>s+w.usd,0)*0.92||1000;
+  let v=total*0.92;
+  const variation=Math.max(total*0.03,0.001);
   for(let i=+days;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
     labels.push(d.toLocaleDateString('en',{month:'short',day:'numeric'}));
-    v+=(Math.random()-0.42)*350;v=Math.max(500,v);
-    values.push(+v.toFixed(2));
+    v+=(Math.random()-0.42)*variation;
+    v=Math.max(total*0.5,v);
+    values.push(+v.toFixed(6));
   }
   return{labels,values};
 }
@@ -1008,9 +1012,6 @@ function drawCanvas(canvasId,days,color){
   const{labels,values}=genData(days);
   const W=canvas.parentElement.clientWidth-44||300;
   const H=160;
-  // Only redraw if dimensions changed
-  if(canvas.dataset.w===String(W)&&canvas.dataset.d===String(days)&&canvas.dataset.c===color) return;
-  canvas.dataset.w=W;canvas.dataset.d=days;canvas.dataset.c=color;
   canvas.style.width='100%';
   canvas.style.height=H+'px';
   canvas.width=W*devicePixelRatio;
@@ -1046,8 +1047,9 @@ function drawCanvas(canvasId,days,color){
     ctx.fillStyle=color;ctx.fill();ctx.strokeStyle='#050d1a';ctx.lineWidth=1.5;ctx.stroke();
   }
 
+  const fmtAxis=v=>v<1?'$'+v.toFixed(3):'$'+Math.round(v).toLocaleString();
   ctx.fillStyle='rgba(106,154,176,0.7)';ctx.font='10px JetBrains Mono';ctx.textAlign='right';
-  for(let g=0;g<=4;g++){const v=mn+(rng*(4-g)/4);ctx.fillText('$'+Math.round(v).toLocaleString(),p.l-5,p.t+(g/4)*ch+4);}
+  for(let g=0;g<=4;g++){const v=mn+(rng*(4-g)/4);ctx.fillText(fmtAxis(v),p.l-5,p.t+(g/4)*ch+4);}
   ctx.textAlign='center';
   const ls=Math.floor(labels.length/5)||1;
   for(let i=0;i<labels.length;i+=ls)ctx.fillText(labels[i],x(i),p.t+ch+17);
@@ -1139,9 +1141,26 @@ function saveSettings(){
 // ════════════════════════════════════
 // INIT
 // ════════════════════════════════════
-window.addEventListener('load',()=>{
-  const n=localStorage.getItem('alka_name');
-  if(n){document.getElementById('userName').textContent=n;document.getElementById('userAv').textContent=n[0].toUpperCase();document.getElementById('sName').value=n;}
+window.addEventListener('load',async()=>{
+  // Restore cached name immediately while /me loads
+  const cached=localStorage.getItem('alka_name');
+  if(cached){document.getElementById('userName').textContent=cached;document.getElementById('userAv').textContent=cached[0].toUpperCase();document.getElementById('sName').value=cached;}
+
+  // Fetch real name from backend (source of truth)
+  try{
+    const meRes=await fetch(`${API}/api/auth/me`,{
+      headers:{'Authorization':`Bearer ${AUTH_TOKEN}`}
+    });
+    if(meRes.ok){
+      const me=await meRes.json();
+      if(me.name){
+        document.getElementById('userName').textContent=me.name;
+        document.getElementById('userAv').textContent=me.name[0].toUpperCase();
+        document.getElementById('sName').value=me.name;
+        localStorage.setItem('alka_name',me.name);
+      }
+    }
+  }catch(e){console.log('Could not load user profile:',e.message);}
 
   renderAll();
   fetchWalletBalances();
