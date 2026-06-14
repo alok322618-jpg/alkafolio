@@ -7,7 +7,11 @@ import { Wallet } from '../models/Wallet.js';
 
 const router = Router();
 
-const connection = new Connection('https://api.mainnet-beta.solana.com');
+// Use dedicated RPC if set in env (Helius/QuickNode free tiers avoid rate limits)
+const connection = new Connection(
+  process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
+  'confirmed'
+);
 const ethProvider = new ethers.JsonRpcProvider('https://eth.llamarpc.com');
 const tonweb = new TonWeb(new TonWeb.HttpProvider('https://toncenter.com/api/v2/jsonRPC'));
 
@@ -89,6 +93,7 @@ router.get('/wallets/balances', requireAuth, async (req, res) => {
     const results = await Promise.allSettled(
       wallets.map(async (w) => {
         const { balance, unit } = await fetchBalance(w.address, w.chain);
+        console.log('Balance fetched:', w.address, balance, unit);
         return { id: w._id, address: w.address, chain: w.chain, label: w.label, balance, unit };
       })
     );
