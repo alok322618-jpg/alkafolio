@@ -653,7 +653,7 @@ if (!AUTH_TOKEN) { window.location.href = '/login.html'; }
 // ════════════════════════════════════
 // STATE
 // ════════════════════════════════════
-let wallets = JSON.parse(localStorage.getItem('alka_wallets') || '[]');
+let wallets = []; // populated by loadWalletsFromBackend() on load
 let livePrices={SOL:153.06,ETH:2910.44,BTC:66420,TON:5.28,USDC:1.00,BONK:0.0000218,JUP:0.54,WIF:1.12};
 let chatHistory=[];
 let curRange='7';
@@ -823,17 +823,29 @@ function saveWallets(){
 
 async function addWalletData(w){
   if(wallets.length>=5){showToast('Maximum 5 wallets','err');return;}
-  wallets.push({id:Date.now(),...w});
+  if(AUTH_TOKEN){
+    try{
+      const chainMap={SOL:'solana',ETH:'ethereum',TON:'ton'};
+      const res=await fetch(`${API}/api/wallets`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${AUTH_TOKEN}`},
+        body:JSON.stringify({address:w.addr,chain:chainMap[w.chain]||w.chain.toLowerCase(),label:w.label})
+      });
+      const data=await res.json();
+      if(res.status===409){showToast('Wallet already added','err');return;}
+      if(!res.ok){showToast(data.error||'Failed to save wallet','err');return;}
+      w.id=data.wallet._id;
+      w._dbId=data.wallet._id;
+    }catch(e){
+      console.error('Backend save failed:',e.message);
+      showToast('Could not save wallet to server','err');
+      return;
+    }
+  }
+  wallets.push(w);
   saveWallets();
+  chartDataCache={};
   renderAll();
-  try{
-    const chainMap={SOL:'solana',ETH:'ethereum',TON:'ton'};
-    await fetch(`${API}/api/wallets`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${AUTH_TOKEN}`},
-      body:JSON.stringify({address:w.addr,chain:chainMap[w.chain]||w.chain.toLowerCase(),label:w.label})
-    });
-  }catch(e){console.log('Backend sync error:',e.message);}
   fetchWalletBalances();
 }
 
@@ -845,28 +857,36 @@ async function fetchWalletBalances(){
     });
     const d=await r.json();
     if(d.balances){
-      const chainMap={solana:'SOL',ethereum:'ETH',ton:'TON'};
       d.balances.forEach(b=>{
-        if(b.balance==null)return;
-        const chain=chainMap[b.chain]||b.chain.toUpperCase();
-        const price=livePrices[chain]||0;
-        const idx=wallets.findIndex(w=>w.addr===b.address);
-        if(idx>=0){
+        const w=wallets.find(x=>x.addr===b.address);
+        if(w&&b.balance!==null){
           console.log('Balance fetched:',b.address,b.balance,b.unit);
-          wallets[idx].sol=+b.balance.toFixed(4);
-          wallets[idx].usd=+(b.balance*price).toFixed(2);
+          w.sol=b.balance;
+          const price=livePrices[w.chain]||0;
+          w.usd=+(b.balance*price).toFixed(6);
         }
       });
-      saveWallets();
       chartDataCache={};
+      saveWallets();
       renderAll();
     }
   }catch(e){console.log('Balance fetch error:',e.message);}
 }
 
-function removeWallet(id){
-  wallets=wallets.filter(w=>w.id!==id);
+async function removeWallet(id){
+  const w=wallets.find(x=>x.id===id);
+  if(!w)return;
+  if(AUTH_TOKEN&&w._dbId){
+    try{
+      await fetch(`${API}/api/wallets/${w._dbId}`,{
+        method:'DELETE',
+        headers:{'Authorization':`Bearer ${AUTH_TOKEN}`}
+      });
+    }catch(e){console.error('Backend delete failed:',e.message);}
+  }
+  wallets=wallets.filter(x=>x.id!==id);
   saveWallets();
+  chartDataCache={};
   renderAll();
   showToast('Wallet removed','info');
 }
@@ -1173,6 +1193,40 @@ async function saveSettings(){
 // ════════════════════════════════════
 // INIT
 // ════════════════════════════════════
+async function loadWalletsFromBackend(){
+  if(!AUTH_TOKEN)return;
+  try{
+    const res=await fetch(`${API}/api/wallets`,{
+      headers:{'Authorization':`Bearer ${AUTH_TOKEN}`}
+    });
+    if(!res.ok)throw new Error('Failed to fetch wallets: '+res.status);
+    const data=await res.json();
+    const chainMap={solana:'SOL',ethereum:'ETH',ton:'TON'};
+    const cols={SOL:'#9945ff',ETH:'#627eea',TON:'#0088cc'};
+    wallets=data.wallets.map(w=>{
+      const chain=chainMap[w.chain]||w.chain.toUpperCase();
+      return{
+        id:w._id,
+        _dbId:w._id,
+        addr:w.address,
+        label:w.label||w.address.slice(0,8),
+        chain,
+        col:cols[chain]||'#3a6a8a',
+        sol:0,usd:0,pnl:0,pct:0,
+      };
+    });
+    saveWallets();
+    chartDataCache={};
+    renderAll();
+    fetchWalletBalances();
+  }catch(e){
+    console.error('Failed to load wallets from backend:',e.message);
+    wallets=JSON.parse(localStorage.getItem('alka_wallets')||'[]');
+    renderAll();
+    fetchWalletBalances();
+  }
+}
+
 window.addEventListener('load',async()=>{
   // Restore cached name immediately while /me loads
   const cached=localStorage.getItem('alka_name');
@@ -1195,8 +1249,7 @@ window.addEventListener('load',async()=>{
     }
   }catch(e){console.log('Could not load user profile:',e.message);}
 
-  renderAll();
-  fetchWalletBalances();
+  loadWalletsFromBackend();
   fetchLivePrices();
   setInterval(fetchLivePrices,60000);
   drawChart('7');
