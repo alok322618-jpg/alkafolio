@@ -654,7 +654,7 @@ if (!AUTH_TOKEN) { window.location.href = '/login.html'; }
 // STATE
 // ════════════════════════════════════
 let wallets = []; // populated by loadWalletsFromBackend() on load
-let livePrices={SOL:153.06,ETH:2910.44,BTC:66420,TON:5.28,USDC:1.00,BONK:0.0000218,JUP:0.54,WIF:1.12};
+let livePrices={BTC:107000,ETH:2500,SOL:150,TON:3.2,USDC:1.00,BONK:0.000022,JUP:0.45,WIF:1.00};
 let chatHistory=[];
 let curRange='7';
 let chartDataCache={};
@@ -674,48 +674,45 @@ const TOKENS=[
 // ════════════════════════════════════
 async function fetchLivePrices(){
   try{
-    const headers = AUTH_TOKEN ? {'Authorization':`Bearer ${AUTH_TOKEN}`} : {};
-    const r = await fetch(`${API}/api/prices`, {headers});
-    const d = await r.json();
-    if(d.solana)   livePrices.SOL = d.solana.usd;
-    if(d.ethereum) livePrices.ETH = d.ethereum.usd;
-    if(d['the-open-network']) livePrices.TON = d['the-open-network'].usd;
-    if(d['usd-coin'])  livePrices.USDC = d['usd-coin'].usd;
-    if(d.bonk)     livePrices.BONK = d.bonk.usd;
-    if(d.jupiter)  livePrices.JUP  = d.jupiter.usd;
-    if(d.dogwifcoin) livePrices.WIF = d.dogwifcoin.usd;
-
-    const map={SOL:'solana',ETH:'ethereum',TON:'the-open-network',USDC:'usd-coin',BONK:'bonk',JUP:'jupiter',WIF:'dogwifcoin'};
+    const r=await fetch(`${API}/api/prices`);
+    if(!r.ok) throw new Error('Prices fetch failed: '+r.status);
+    const d=await r.json();
+    if(d.bitcoin)             livePrices.BTC  = d.bitcoin.usd;
+    if(d.solana)              livePrices.SOL  = d.solana.usd;
+    if(d.ethereum)            livePrices.ETH  = d.ethereum.usd;
+    if(d['the-open-network']) livePrices.TON  = d['the-open-network'].usd;
+    if(d['usd-coin'])         livePrices.USDC = d['usd-coin'].usd;
+    if(d.bonk)                livePrices.BONK = d.bonk.usd;
+    if(d.jupiter)             livePrices.JUP  = d.jupiter.usd;
+    if(d.dogwifcoin)          livePrices.WIF  = d.dogwifcoin.usd;
+    const cgMap={SOL:'solana',ETH:'ethereum',TON:'the-open-network',USDC:'usd-coin',BONK:'bonk',JUP:'jupiter',WIF:'dogwifcoin'};
     TOKENS.forEach(t=>{
-      const key=map[t.s];
-      if(d[key]?.usd_24h_change) t.chg=+d[key].usd_24h_change.toFixed(2);
+      const key=cgMap[t.s];
+      if(d[key]?.usd_24h_change!==undefined) t.chg=+d[key].usd_24h_change.toFixed(2);
     });
-
+    console.log('Live prices updated:',livePrices);
     buildTicker();
     renderAll();
   }catch(e){
-    console.log('Price fetch failed, using demo');
+    console.warn('Price fetch failed, using fallback:',e.message);
     buildTicker();
   }
 }
 
 function buildTicker(){
   const items=[
-    {s:'SOL',p:livePrices.SOL,c:TOKENS.find(t=>t.s==='SOL')?.chg||2.4},
-    {s:'ETH',p:livePrices.ETH,c:TOKENS.find(t=>t.s==='ETH')?.chg||-0.8},
-    {s:'BTC',p:livePrices.BTC,c:1.2},
-    {s:'TON',p:livePrices.TON,c:TOKENS.find(t=>t.s==='TON')?.chg||3.1},
-    {s:'USDC',p:livePrices.USDC,c:0.01},
-    {s:'BONK',p:livePrices.BONK,c:TOKENS.find(t=>t.s==='BONK')?.chg||-3.2},
-    {s:'JUP',p:livePrices.JUP,c:TOKENS.find(t=>t.s==='JUP')?.chg||1.8},
-    {s:'WIF',p:livePrices.WIF,c:TOKENS.find(t=>t.s==='WIF')?.chg||5.7},
+    {s:'BTC', p:livePrices.BTC,  c:0},
+    {s:'ETH', p:livePrices.ETH,  c:TOKENS.find(t=>t.s==='ETH')?.chg||0},
+    {s:'SOL', p:livePrices.SOL,  c:TOKENS.find(t=>t.s==='SOL')?.chg||0},
+    {s:'TON', p:livePrices.TON,  c:TOKENS.find(t=>t.s==='TON')?.chg||0},
+    {s:'USDC',p:livePrices.USDC, c:0},
   ];
   const fmt=p=>p<0.001?p.toFixed(7):p<1?p.toFixed(4):p.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
   const html=items.map(i=>`
     <div class="tick-item">
       <span class="tick-sym">${i.s}</span>
       <span class="tick-price">$${fmt(i.p)}</span>
-      <span class="${i.c>=0?'tick-up':'tick-dn'}">${i.c>=0?'▲':'▼'} ${Math.abs(i.c).toFixed(2)}%</span>
+      <span class="${(i.c||0)>=0?'tick-up':'tick-dn'}">${(i.c||0)>=0?'▲':'▼'} ${Math.abs(i.c||0).toFixed(2)}%</span>
     </div>`).join('');
   document.getElementById('tickerInner').innerHTML=html+html;
 }
