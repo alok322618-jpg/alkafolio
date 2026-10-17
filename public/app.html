@@ -646,7 +646,8 @@ tr:hover td{background:rgba(0,212,255,0.015);}
 // ════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════
-const API = 'https://alkafolio-api.onrender.com';
+// Same-origin API: works on Render, localhost, or any tunnel/host without code changes
+const API = window.location.origin;
 let AUTH_TOKEN = localStorage.getItem('alka_token') || '';
 if (!AUTH_TOKEN) { window.location.href = '/login.html'; }
 
@@ -656,6 +657,7 @@ if (!AUTH_TOKEN) { window.location.href = '/login.html'; }
 let wallets = []; // populated by loadWalletsFromBackend() on load
 let livePrices={BTC:107000,ETH:2500,SOL:150,TON:3.2,USDC:1.00,BONK:0.000022,JUP:0.45,WIF:1.00};
 let chatHistory=[];
+let realHistory=[]; // real daily snapshots from /api/snapshots (oldest first)
 let curRange='7';
 let chartDataCache={};
 
@@ -866,6 +868,7 @@ async function fetchWalletBalances(){
       chartDataCache={};
       saveWallets();
       renderAll();
+      loadHistory().then(()=>{drawChart(curRange);drawPnl(curRange);});
     }
   }catch(e){console.log('Balance fetch error:',e.message);}
 }
@@ -1017,7 +1020,24 @@ function setPnl(btn,r){
   drawPnl(r);
 }
 
+async function loadHistory(){
+  if(!AUTH_TOKEN)return;
+  try{
+    const r=await fetch(`${API}/api/snapshots`,{headers:{'Authorization':`Bearer ${AUTH_TOKEN}`}});
+    const d=await r.json();
+    if(Array.isArray(d.snapshots))realHistory=d.snapshots;
+  }catch(e){console.warn('History load failed:',e.message);}
+}
+
 function genData(days){
+  // Prefer real recorded history; fall back to a projection only when empty
+  if(realHistory.length>=2){
+    const slice=realHistory.slice(-Math.min(+days+1,realHistory.length));
+    return{
+      labels:slice.map(s=>new Date(s.date+'T00:00:00').toLocaleDateString('en',{month:'short',day:'numeric'})),
+      values:slice.map(s=>s.totalUsd),
+    };
+  }
   const total=wallets.reduce((s,w)=>s+w.usd,0);
   if(!wallets.length||total===0)return{labels:[],values:[]};
   const cacheKey=`${days}_${total.toFixed(6)}`;
@@ -1249,6 +1269,7 @@ window.addEventListener('load',async()=>{
   loadWalletsFromBackend();
   fetchLivePrices();
   setInterval(fetchLivePrices,60000);
+  loadHistory().then(()=>{drawChart(curRange);drawPnl(curRange);});
   drawChart('7');
   window.addEventListener('resize',()=>drawChart(curRange));
 });
