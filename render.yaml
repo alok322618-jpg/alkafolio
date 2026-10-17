@@ -27,3 +27,6 @@ services:
 
       - key: COINGECKO_API_KEY
         sync: false
+
+      - key: ETH_RPC_URL
+        sync: false
