@@ -31,9 +31,23 @@ function requireAuth(req, res, next) {
   }
 }
 
+function botUnavailable(res) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    res.status(503).json({ error: 'AlkaBot is not configured on this server (missing API key).' });
+    return true;
+  }
+  return false;
+}
+
+function extractText(response) {
+  const block = (response.content || []).find(b => b.type === 'text');
+  return block ? block.text : '';
+}
+
 // POST /api/chat
 router.post('/chat', requireAuth, async (req, res) => {
   try {
+    if (botUnavailable(res)) return;
     const { message, history } = req.body;
     if (!message) return res.status(400).json({ error: 'message is required' });
 
@@ -49,7 +63,7 @@ router.post('/chat', requireAuth, async (req, res) => {
       messages,
     });
 
-    res.json({ reply: response.content[0].text });
+    res.json({ reply: extractText(response) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -58,6 +72,7 @@ router.post('/chat', requireAuth, async (req, res) => {
 // POST /api/chat/stream
 router.post('/chat/stream', requireAuth, async (req, res) => {
   try {
+    if (botUnavailable(res)) return;
     const { message, history } = req.body;
     if (!message) return res.status(400).json({ error: 'message is required' });
 
