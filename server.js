@@ -38,10 +38,14 @@ app.use((req, res, next) => {
   res.sendFile(join(__dirname, 'public', 'index.html'));
 });
 
-// Connect to MongoDB then start server
+// Fail fast on missing config so a bad deploy shows the real reason in logs
 const MONGODB_URI = process.env.MONGODB_URI;
 if (!MONGODB_URI) {
   console.error('MONGODB_URI environment variable is required');
+  process.exit(1);
+}
+if (!process.env.JWT_SECRET) {
+  console.error('JWT_SECRET environment variable is required');
   process.exit(1);
 }
 
