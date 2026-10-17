@@ -4,6 +4,8 @@ import { ethers } from 'ethers';
 import TonWeb from 'tonweb';
 import jwt from 'jsonwebtoken';
 import { Wallet } from '../models/Wallet.js';
+import { Snapshot } from '../models/Snapshot.js';
+import { getCachedPrices } from './prices.js';
 
 const router = Router();
 
@@ -12,7 +14,11 @@ const connection = new Connection(
   process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
   'confirmed'
 );
-const ethProvider = new ethers.JsonRpcProvider('https://eth.llamarpc.com');
+// eth.llamarpc.com went down (HTTP 525) — keep the RPC URL configurable
+// via ETH_RPC_URL so it can be swapped from the Render dashboard without a redeploy
+const ethProvider = new ethers.JsonRpcProvider(
+  process.env.ETH_RPC_URL || 'https://ethereum-rpc.publicnode.com'
+);
 const tonweb = new TonWeb(new TonWeb.HttpProvider('https://toncenter.com/api/v2/jsonRPC'));
 
 function requireAuth(req, res, next) {
@@ -56,6 +62,17 @@ router.get('/wallets', requireAuth, async (req, res) => {
   }
 });
 
+const MAX_WALLETS = 5;
+
+function isValidAddress(address, chain) {
+  if (typeof address !== 'string') return false;
+  const a = address.trim();
+  if (chain === 'ethereum') return /^0x[0-9a-fA-F]{40}$/.test(a);
+  if (chain === 'solana') return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a);
+  if (chain === 'ton') return a.length >= 40 && a.length <= 70 && /^[A-Za-z0-9_+-]+$/.test(a);
+  return false;
+}
+
 // POST /api/wallets
 router.post('/wallets', requireAuth, async (req, res) => {
   try {
@@ -64,11 +81,17 @@ router.post('/wallets', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'address and chain are required' });
     if (!['solana', 'ethereum', 'ton'].includes(chain))
       return res.status(400).json({ error: "chain must be 'solana', 'ethereum', or 'ton'" });
+    if (!isValidAddress(address, chain))
+      return res.status(400).json({ error: `Invalid ${chain} wallet address` });
 
-    const existing = await Wallet.findOne({ userId: req.userId, address, chain });
+    const count = await Wallet.countDocuments({ userId: req.userId });
+    if (count >= MAX_WALLETS)
+      return res.status(400).json({ error: `Maximum ${MAX_WALLETS} wallets allowed` });
+
+    const existing = await Wallet.findOne({ userId: req.userId, address: address.trim(), chain });
     if (existing) return res.status(409).json({ error: 'Wallet already added' });
 
-    const wallet = await Wallet.create({ userId: req.userId, address, chain, label: label || '' });
+    const wallet = await Wallet.create({ userId: req.userId, address: address.trim(), chain, label: label || '' });
     res.status(201).json({ wallet });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -109,7 +132,40 @@ router.get('/wallets/balances', requireAuth, async (req, res) => {
             error: 'Failed to fetch balance',
           }
     );
+
+    // Record today's portfolio snapshot (one per user per day) for the
+    // real history chart. Failures here must never break the balances call.
+    try {
+      const prices = await getCachedPrices();
+      const priceOf = { solana: prices.solana?.usd, ethereum: prices.ethereum?.usd, ton: prices['the-open-network']?.usd };
+      let totalUsd = 0;
+      for (const b of balances) {
+        if (typeof b.balance === 'number' && priceOf[b.chain]) totalUsd += b.balance * priceOf[b.chain];
+      }
+      const date = new Date().toISOString().slice(0, 10);
+      await Snapshot.updateOne(
+        { userId: req.userId, date },
+        { $set: { totalUsd: +totalUsd.toFixed(2) } },
+        { upsert: true }
+      );
+    } catch (snapErr) {
+      console.error('Snapshot save failed:', snapErr.message);
+    }
+
     res.json({ balances });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/snapshots — last 30 daily portfolio totals (oldest first)
+router.get('/snapshots', requireAuth, async (req, res) => {
+  try {
+    const snaps = await Snapshot.find({ userId: req.userId })
+      .sort({ date: 1 })
+      .limit(30)
+      .select('date totalUsd -_id');
+    res.json({ snapshots: snaps });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
