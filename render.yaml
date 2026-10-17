@@ -25,6 +25,9 @@ services:
       - key: EMAILJS_PUBLIC_KEY
         sync: false
 
+      - key: EMAILJS_PRIVATE_KEY
+        sync: false
+
       - key: COINGECKO_API_KEY
         sync: false
 
