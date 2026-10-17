@@ -23,19 +23,22 @@ function generateOtp() {
 }
 
 async function sendOtpEmail(email, otp) {
+  const payload = {
+    service_id: process.env.EMAILJS_SERVICE_ID,
+    template_id: process.env.EMAILJS_TEMPLATE_ID,
+    user_id: process.env.EMAILJS_PUBLIC_KEY,
+    template_params: {
+      email: email,
+      passcode: otp,
+      time: new Date(Date.now() + 10 * 60000).toLocaleTimeString(),
+    },
+  };
+  // EmailJS accounts in "strict mode" reject calls without the private key
+  if (process.env.EMAILJS_PRIVATE_KEY) payload.accessToken = process.env.EMAILJS_PRIVATE_KEY;
   const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      service_id: process.env.EMAILJS_SERVICE_ID,
-      template_id: process.env.EMAILJS_TEMPLATE_ID,
-      user_id: process.env.EMAILJS_PUBLIC_KEY,
-      template_params: {
-        email: email,
-        passcode: otp,
-        time: new Date(Date.now() + 10 * 60000).toLocaleTimeString(),
-      },
-    }),
+    body: JSON.stringify(payload),
   });
   if (!response.ok) {
     const text = await response.text();
