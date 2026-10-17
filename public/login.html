@@ -233,7 +233,8 @@ nav{position:relative;z-index:10;display:flex;align-items:center;justify-content
 <div class="toast" id="toastEl"></div>
 
 <script>
-const API = 'https://alkafolio-api.onrender.com';
+// Same-origin API: works on Render, localhost, or any tunnel/host without code changes
+const API = window.location.origin;
 let userEmail = '', timer = null;
 
 function showToast(msg, type='ok'){
@@ -314,7 +315,7 @@ async function handleLogin(){
       showToast('Login successful!','ok');
       setTimeout(()=>window.location.href='/app.html',1000);
     }else{
-      showToast(data.message||'Login failed','err');
+      showToast((data.error||data.message)||'Login failed','err');
       btn.textContent='Login to AlkaFolio';btn.disabled=false;
     }
   }catch(e){
@@ -353,10 +354,16 @@ async function handleSignup(){
       document.getElementById('otpEmailShow').textContent=email;
       switchTab('otp');
       startTimer(600);
-      showToast('OTP sent to your email!','ok');
+      if(data.otp){
+        // Dev fallback: backend couldn't send the email, it returned the OTP instead
+        showToast('Email failed — your code: '+data.otp,'ok');
+        alert('Email service is not configured. Your verification code is: '+data.otp);
+      }else{
+        showToast('OTP sent to your email!','ok');
+      }
     }else{
       alert('Server error: '+JSON.stringify(data));
-      showToast(data.message||'Signup failed','err');
+      showToast((data.error||data.message)||'Signup failed','err');
     }
   }catch(e){
     console.error('Signup error:', e);
@@ -399,7 +406,7 @@ async function verifyOTP(){
       showToast('Account created!','ok');
       setTimeout(()=>window.location.href='/app.html',3500);
     }else{
-      showToast(data.message||'Wrong OTP','err');
+      showToast((data.error||data.message)||'Wrong OTP','err');
       ['d1','d2','d3','d4','d5','d6'].forEach(id=>{
         const el=document.getElementById(id);
         el.value='';el.style.borderColor='rgba(255,23,68,0.6)';
@@ -415,14 +422,22 @@ async function verifyOTP(){
 
 async function resendOTP(){
   try{
-    await fetch(`${API}/api/auth/resend-otp`,{
+    const res=await fetch(`${API}/api/auth/resend-otp`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({email:userEmail})
     });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok){showToast((data.error||data.message)||'Failed to resend','err');return;}
     startTimer(600);
     document.getElementById('resendBtn').classList.remove('show');
-    showToast('OTP resent!','ok');
+    if(data.otp){
+      // Dev fallback: backend couldn't send the email, it returned the OTP instead
+      showToast('Email failed — your code: '+data.otp,'ok');
+      alert('Email service is not configured. Your verification code is: '+data.otp);
+    }else{
+      showToast('OTP resent!','ok');
+    }
   }catch(e){showToast('Failed to resend','err');}
 }
 
